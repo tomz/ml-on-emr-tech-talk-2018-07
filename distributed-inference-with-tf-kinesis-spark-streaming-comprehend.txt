@@ -1,0 +1,44 @@
+## ssh to the EMR master node
+
+## install git
+sudo yum install git -y
+
+cd /home/hadoop/
+
+## get the sample code
+git clone https://github.com/tomz/ml-on-emr-tech-talk-2018-07.git
+
+## install mvn
+aws s3 cp s3://tomzeng/maven/apache-maven-3.3.9-bin.tar.gz .
+tar xzf apache-maven-3.3.9-bin.tar.gz
+sudo mkdir /usr/local/maven
+sudo mv apache-maven-3.3.9/ /usr/local/maven/
+sudo alternatives --install /usr/bin/mvn mvn /usr/local/maven/apache-maven-3.3.9/bin/mvn 1
+
+## clone the spark structured streaming repo
+git clone https://github.com/tomz/kinesis-sql.git
+cd kinesis-sql
+git checkout 2.3.0
+mvn install -DskipTests
+cd ..
+
+## set the Twitter API and AWS keys and secrets in the environment variables in set-api-keys-env.sh and run
+source set-api-keys-env.sh
+
+## pump tweets into kinesis (and kinesis firehose), do the following in a terminal or screen session
+python27 ml-on-emr-tech-talk-2018-07/kinesis-producer-tweepy.py <topic>
+
+# for example to grab tweets with the word amazon in it:
+python27 ml-on-emr-tech-talk-2018-07/kinesis-producer-tweepy.py amazon
+
+## start Spark streaming to processing tweets in kinesis, do the following in another terminal or screen session
+spark-submit \
+       --num-executors <number of executors> --executor-memory <executor memory> --executor-cores <number of cores per executor> \
+       --jars kinesis-sql/target/spark-sql-kinesis_2.11-2.3.0.jar \
+        ml-on-emr-tech-talk-2018-07/kinesis-spark-structured-streaming-tweets-sentiment.py  <app-name> <kinesis-stream-name> <kinesis-endpoint-url> <region-name> <interval> <format> <output-location>
+
+# replace the arguments <...> with your own, example below shows mine:
+spark-submit \
+       --num-executors 2 --executor-memory 10G --executor-cores 2 \
+       --jars kinesis-sql/target/spark-sql-kinesis_2.11-2.3.0.jar \
+        ml-on-emr-tech-talk-2018-07/kinesis-spark-structured-streaming-tweets-sentiment.py "Spark Structured Streaming Kinesis Tweet Sentiments" "tomz-test" "https://kinesis.us-east-1.amazonaws.com" "us-east-1" "60 seconds" "json" "s3://tomzeng-perf2/data/tweets-with-sentiments-structured-streaming.json/"

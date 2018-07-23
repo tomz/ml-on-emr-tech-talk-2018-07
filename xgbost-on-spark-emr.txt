@@ -1,0 +1,24 @@
+# instructions for running XGBoost on Spark on EMR
+
+1. ssh to your EMR (5.14.0 or 5.15.0) master instance
+
+2. run the following to start 
+spark-shell --packages com.esotericsoftware.reflectasm:reflectasm:1.08,ml.dmlc:xgboost4j-spark:0.72
+
+3. run the following Scala code in spark-shell to test things
+
+import ml.dmlc.xgboost4j.scala.Booster
+import ml.dmlc.xgboost4j.scala.spark.XGBoost
+// create training and testing dataframes
+val numRound = 2
+val nWorkers = 4
+val inputTrainPath = "s3://tomzeng/ml-data/agaricus.txt.train"
+val inputTestPath = "s3://tomzeng/ml-data/agaricus.txt.test"
+// build dataset
+val trainDF = spark.sqlContext.read.format("libsvm").load(inputTrainPath)
+val testDF = spark.sqlContext.read.format("libsvm").load(inputTestPath)
+// start training
+val paramMap = List("eta" -> 0.1f, "max_depth" -> 2, "objective" -> "binary:logistic").toMap
+val xgboostModel = XGBoost.trainWithDataFrame(trainDF, paramMap, numRound, nWorkers, useExternalMemory = true)
+// xgboost-spark appends the column containing prediction results
+xgboostModel.transform(testDF).show()

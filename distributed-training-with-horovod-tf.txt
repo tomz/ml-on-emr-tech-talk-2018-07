@@ -1,0 +1,38 @@
+# launch an EMR p3 GPU cluster with the pdsh step s3://tomzeng/BAs/install-pdsh.sh and the s3://tomzeng/BAs/install-tf-horovod-emr-5.14-5.15-gpu.sh bootstrap action
+# for how to use EMR step and bootstrap action please check the EMR docs online
+
+# ssh to the EMR master instance
+
+# copy the all_hosts file created by the pdsh.sh step to hostfile:
+  cp all_hosts hostfile
+  
+# use vi to open hostfile and add slots=8 to the end of each line (slots=8 for p3.16xl, slots=2 for p3.2xl)
+  vi hostfile
+
+# the content of the hostfile should look something like (for a 5 node cluster, and ip address will be different for your cluster):
+10.0.5.189 slots=8
+10.0.5.6   slots=8
+10.0.5.196 slots=8
+10.0.5.35  slots=8
+10.0.5.208 slots=8
+
+## run the following sample commands:
+
+# 1 
+time mpirun -np 1 -H localhost -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x PATH -x LD_LIBRARY_PATH -x NCCL_SOCKET_IFNAME=^docker0 -mca pml ob1 -mca btl ^openib -mca btl_tcp_if_exclude lo,docker0 python3 horovod/examples/tensorflow_mnist_estimator.py
+
+# train with 1 GPU
+time mpirun -np 1 -hostfile hostfile -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x PATH -x LD_LIBRARY_PATH -x NCCL_SOCKET_IFNAME=^docker0 -mca pml ob1 -mca btl ^openib -mca btl_tcp_if_exclude lo,docker0 python benchmarks/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py --model resnet101 --batch_size 64 --variable_update horovod
+
+# train with 2 GPUs
+time mpirun -np 2 -hostfile hostfile -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x PATH -x LD_LIBRARY_PATH -x NCCL_SOCKET_IFNAME=^docker0 -mca pml ob1 -mca btl ^openib -mca btl_tcp_if_exclude lo,docker0 python benchmarks/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py --model resnet101 --batch_size 64 --variable_update horovod
+
+# train with 4 GPUs
+time mpirun -np 4 -hostfile hostfile -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x PATH -x LD_LIBRARY_PATH -x NCCL_SOCKET_IFNAME=^docker0 -mca pml ob1 -mca btl ^openib -mca btl_tcp_if_exclude lo,docker0 python benchmarks/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py --model resnet101 --batch_size 64 --variable_update horovod
+
+# train with 8 GPUs
+time mpirun -np 8 -hostfile hostfile -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x PATH -x LD_LIBRARY_PATH -x NCCL_SOCKET_IFNAME=^docker0 -mca pml ob1 -mca btl ^openib -mca btl_tcp_if_exclude lo,docker0 python benchmarks/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py --model resnet101 --batch_size 64 --variable_update horovod
+
+# train with all 40 GPUs on a 5 nodel px.16xl cluster
+time mpirun -np 40 -hostfile hostfile -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x PATH -x LD_LIBRARY_PATH -x NCCL_SOCKET_IFNAME=^docker0 -mca pml ob1 -mca btl ^openib -mca btl_tcp_if_exclude lo,docker0 python benchmarks/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py --model resnet101 --batch_size 64 --variable_update horovod
+
