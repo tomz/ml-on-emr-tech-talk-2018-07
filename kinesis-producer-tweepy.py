@@ -17,9 +17,8 @@ kinesis_client = boto3.client('kinesis', region_name='us-east-1')
 #consumer key, consumer secret, access token, access secret.
 consumerKey=os.environ["TWITTER_CONSUMER_KEY"]
 consumerSecret=os.environ["TWITTER_CONSUMER_SECRET"]
-consumerKey=os.environ["TWITTER_CONSUMER_KEY"]
-consumerSecret=os.environ["TWITTER_CONSUMER_SECRET"]
-
+accessToken=os.environ["TWITTER_ACCESS_KEY"]
+accessSecret=os.environ["TWITTER_ACCESS_SECRET"]
 
 class listener(StreamListener):
 
